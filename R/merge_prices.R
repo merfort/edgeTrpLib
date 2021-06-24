@@ -49,8 +49,13 @@ merge_prices <- function(gdx, REMINDmapping, REMINDyears,
         bal_eq <- "q35_demFeTrans"
         febal.m <- readGDX(gdx, name = bal_eq, types = "equations",
                            field = "m", format = "first_found")
-        febal.m <- dimSums(febal.m,dim=c(3.2))
 
+        if (is.null(febal.m)){ # temporary fix for compatibility with old version
+          febal.m <- readGDX(gdx, name = "qm_balFeForCesAndEs", types = "equations",
+                             field = "m", format = "first_found")
+        } else {
+          febal.m <- dimSums(febal.m,dim=c(3.2))
+        }
 
         febal.m <- febal.m[, REMINDyears[REMINDyears>=startyear], fety]
 
