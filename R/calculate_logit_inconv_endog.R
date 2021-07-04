@@ -315,9 +315,61 @@ calculate_logit_inconv_endog = function(prices,
 
       }
 
-      if (techswitch %in% c("BEV", "FCEV", "BEV_EUR")) {
+      if (techswitch != "BEV_EUR"){
+        ## In the default scenarios techswitch is applied to all regions, so
+        ## there is no case differentiation for floor (same for all regions)
+        if (techswitch %in% c("BEV", "FCEV")) {
+          ## the policymaker bans ICEs increasingly more strictly
+          if (t >= 2023 & t < 2025) {
+            floor = 0.05
+          } else if (t >= 2025 & t < 2027) {
+            floor = 0.1
+          } else if (t >= 2027 & t <=2030) {
+            floor = 0.15
+          } else if (t > 2030) {
+            floor = 0.2
+          } else {
+            floor = 0
+          }
+        
+          ## If the ICE phase out scenario is chosen, ICEs are banned even
+          ## stricter (this is only allowed in non-"Liquids" scenarios)
+          if (ban_ICE == 1) {
+            print("Strong phase out of ICEs (increase inconvenience costs even stronger")
+            floor = floor * 2
+          }
 
-        ## the policymaker bans ICEs increasingly more strictly
+        } else {
+          ## the policymaker bans ICEs increasingly more strictly
+          if (t >= 2023 & t < 2025) {
+            floor = 0.02
+          } else if (t >= 2025 & t < 2027) {
+            floor = 0.05
+          } else if (t >= 2027 & t <=2030) {
+            floor = 0.07
+          } else if (t > 2030) {
+            floor = 0.1
+          } else {
+            floor = 0
+          }
+        }
+        
+        ## inconvenience cost for liquids is allowed to increase
+        tmp[technology == "Liquids", pinco_tot := ifelse(year == t,
+                                  0.5*exp(1)^(weighted_sharessum[year == (t-1)]*bmodelav),
+                                  pinco_tot), by = c("region", "technology", "vehicle_type", "subsector_L1")]
+
+
+        tmp[technology == "Liquids", pinco_tot := ifelse(year == t,
+                                  pmax(pinco_tot, floor),
+                                  pinco_tot), by = c("region", "technology", "vehicle_type", "subsector_L1")]
+      } else {
+        ## In the BEV_EUR scenario, techswitch is only applied to EUR. Here
+        ## floor takes the higher values for EUR and the lower values for the
+        ## rest of the world
+        
+        ## 1. EUR
+        ## Set floor to the (higher) levels of the "BEV" and "FCEV" scenarios
         if (t >= 2023 & t < 2025) {
           floor = 0.05
         } else if (t >= 2025 & t < 2027) {
@@ -330,14 +382,25 @@ calculate_logit_inconv_endog = function(prices,
           floor = 0
         }
         
-        ## If the ICE phase out scenario is chosen, ICEs are banned even stricter
+        ## If the ICE phase out scenario is chosen, ICEs are banned even
+        ## stricter (this is only allowed in non-"Liquids" scenarios)
         if (ban_ICE == 1) {
           print("Strong phase out of ICEs (increase inconvenience costs even stronger")
           floor = floor * 2
         }
 
-      } else {
-        ## the policymaker bans ICEs increasingly more strictly
+        ## inconvenience cost for liquids is allowed to increase
+        tmp[region == "EUR" & technology == "Liquids", pinco_tot := ifelse(year == t,
+                                  0.5*exp(1)^(weighted_sharessum[year == (t-1)]*bmodelav),
+                                  pinco_tot), by = c("region", "technology", "vehicle_type", "subsector_L1")]
+
+
+        tmp[region == "EUR" & technology == "Liquids", pinco_tot := ifelse(year == t,
+                                  pmax(pinco_tot, floor),
+                                  pinco_tot), by = c("region", "technology", "vehicle_type", "subsector_L1")]
+        
+        ## 2. Rest of the world
+        ## Set floor to the (lower) levels of the "Liquids" scenario
         if (t >= 2023 & t < 2025) {
           floor = 0.02
         } else if (t >= 2025 & t < 2027) {
@@ -349,30 +412,16 @@ calculate_logit_inconv_endog = function(prices,
         } else {
           floor = 0
         }
-      }
 
-      ## inconvenience cost for liquids is allowed to increase
-      ## For all regions in the default scenarios
-      if(techswitch != "BEV_EUR"){
-        tmp[technology == "Liquids", pinco_tot := ifelse(year == t,
-                                   0.5*exp(1)^(weighted_sharessum[year == (t-1)]*bmodelav),
-                                   pinco_tot), by = c("region", "technology", "vehicle_type", "subsector_L1")]
+        ## inconvenience cost for liquids is allowed to increase
+        tmp[region != "EUR" & technology == "Liquids", pinco_tot := ifelse(year == t,
+                                  0.5*exp(1)^(weighted_sharessum[year == (t-1)]*bmodelav),
+                                  pinco_tot), by = c("region", "technology", "vehicle_type", "subsector_L1")]
 
 
-            tmp[technology == "Liquids", pinco_tot := ifelse(year == t,
-                                      pmax(pinco_tot, floor),
-                                      pinco_tot), by = c("region", "technology", "vehicle_type", "subsector_L1")]
-        
-        ## Only for EUR in case of techswitch == "BEV_EUR"
-      } else {
-            tmp[region == "EUR" & technology == "Liquids", pinco_tot := ifelse(year == t,
-                                      0.5*exp(1)^(weighted_sharessum[year == (t-1)]*bmodelav),
-                                      pinco_tot), by = c("region", "technology", "vehicle_type", "subsector_L1")]
-
-
-            tmp[region == "EUR" & technology == "Liquids", pinco_tot := ifelse(year == t,
-                                      pmax(pinco_tot, floor),
-                                      pinco_tot), by = c("region", "technology", "vehicle_type", "subsector_L1")]
+        tmp[region != "EUR" & technology == "Liquids", pinco_tot := ifelse(year == t,
+                                  pmax(pinco_tot, floor),
+                                  pinco_tot), by = c("region", "technology", "vehicle_type", "subsector_L1")]
       }
 
       ## hybrid electric inconvenience cost cannot decrease below 50% of 2020 value
