@@ -113,6 +113,11 @@ createRDS <- function(input_path, data_path, SSP_scenario, EDGE_scenario){
           input_path = input_path,
           names_dt = c("year", "region","SSPscen", "EDGEscen", "vehicle_type", "entry", "loadFactor"))
 
+  csv2RDS(pattern = "annual_mileage",
+          filename = "annual_mileage",
+          input_path = input_path,
+          names_dt = c("year", "region","SSPscen", "EDGEscen", "vehicle_type", "entry", "annual_mileage"))
+
 }
 
 
